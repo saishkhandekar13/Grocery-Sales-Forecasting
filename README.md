@@ -1,73 +1,99 @@
-🛒 Grocery Sales Forecasting using Machine Learning
-📌 Project Overview
+# Grocery Sales Forecasting using Machine Learning
 
-This project focuses on forecasting daily grocery sales for different store-item combinations using historical time-series data.
+## 1. Project Overview
 
-The goal is to build an end-to-end machine learning pipeline that:
+This project implements an end-to-end machine learning pipeline to forecast daily grocery sales for different store–item combinations using historical time-series data.
 
-Processes large retail datasets efficiently
+The objective is to build a scalable, modular forecasting system that:
 
-Engineers time-series features
+* Handles large retail datasets efficiently
+* Applies structured time-series feature engineering
+* Trains and compares multiple machine learning models
+* Uses time-based validation to prevent data leakage
+* Selects the best-performing model based on evaluation metrics
 
-Trains multiple ML models
+The dataset is based on the Corporación Favorita Grocery Sales Forecasting competition.
 
-Compares model performance
+---
 
-Selects the best-performing model
+## 2. Business Problem
 
-The project is based on the Corporación Favorita Grocery Sales dataset and is implemented using Python.
+Retail businesses require accurate sales forecasts to:
 
-🎯 Business Problem
+* Optimize inventory management
+* Reduce stockouts
+* Prevent overstocking
+* Improve supply chain efficiency
+* Plan promotional campaigns
 
-Retail companies need accurate sales forecasting to:
+This project predicts:
 
-Optimize inventory
+**Target Variable:**
+`unit_sales` – Daily sales quantity for each store and item.
 
-Reduce stockouts
+---
 
-Prevent overstocking
+## 3. Dataset Description
 
-Improve supply chain efficiency
+The project uses the following datasets:
 
-Plan promotions effectively
+| File Name           | Description                                      |
+| ------------------- | ------------------------------------------------ |
+| train.csv           | Historical sales data (includes target variable) |
+| test.csv            | Future dates for prediction                      |
+| stores.csv          | Store metadata (city, state, type, cluster)      |
+| items.csv           | Product metadata (family, class, perishable)     |
+| holidays_events.csv | Holiday information                              |
+| oil.csv             | Oil price data                                   |
 
-This project predicts daily unit_sales for each store-item pair.
+### Key Columns
 
-🗂 Dataset Used
+**train.csv**
 
-The following datasets were used:
+* date
+* store_nbr
+* item_nbr
+* unit_sales (target)
+* onpromotion
 
-train.csv – Historical sales data (target: unit_sales)
+**stores.csv**
 
-test.csv – Future prediction dates
+* city
+* state
+* type
+* cluster
 
-stores.csv – Store metadata (city, state, type, cluster)
+**items.csv**
 
-items.csv – Product metadata (family, class, perishable)
+* family
+* class
+* perishable
 
-holidays_events.csv – Holiday information
+---
 
-oil.csv – Oil prices (economic indicator)
+## 4. Engineering Constraints and Design Decisions
 
-⚙️ Engineering Decision (Memory Optimization)
+The full dataset contains approximately 71 million rows.
 
-The full dataset contains ~71 million rows, which is too large for local processing on 8GB RAM.
+Since the local development environment has 8GB RAM, processing the full dataset caused memory overflow issues.
 
-To ensure stable training:
+To ensure stable execution:
 
-We limited training data to 5 million rows
+* Limited training data to 5,000,000 rows
+* Preserved time-series structure
+* Maintained full feature engineering logic
 
-Maintained time-series integrity
+In a production environment, the system would scale using distributed processing frameworks such as Spark or Dask.
 
-Preserved feature engineering pipeline
+---
 
-In production, this would scale using distributed systems like Spark or Dask.
+## 5. Project Structure
 
-🏗 Project Structure
+```
 Grocery-Sales-Forecasting/
 │
 ├── data/
-│   ├── raw/
+│   └── raw/
 │
 ├── src/
 │   ├── data_loader.py
@@ -81,176 +107,227 @@ Grocery-Sales-Forecasting/
 │
 ├── main.py
 └── README.md
+```
 
-This modular structure follows real-world ML project standards.
+The project follows a modular architecture similar to real-world ML production systems.
 
-🧠 Project Workflow
-1️⃣ Data Loading
+---
 
-Loaded 5 million rows for memory efficiency
+## 6. Data Processing Pipeline
 
-Converted date columns to datetime
+### 6.1 Data Loading
 
-Optimized dtypes
+* Loaded 5 million rows using pandas
+* Optimized data types to reduce memory usage
+* Converted date columns to datetime
 
-2️⃣ Target Cleaning
+---
+
+### 6.2 Target Transformation
+
+Applied log transformation:
+
+```
 unit_sales = log1p(unit_sales)
+```
 
-Why?
+Reason:
 
-Sales data is highly skewed
+* Sales distribution is highly skewed
+* Log transformation stabilizes variance
+* Improves RMSLE performance
 
-Log transformation stabilizes variance
+---
 
-Improves RMSLE performance
-
-3️⃣ Dataset Merging
+### 6.3 Dataset Merging
 
 Merged:
 
-Store metadata
+* Store metadata
+* Item metadata
+* Oil price data
+* Holiday indicator
 
-Item metadata
+Key engineering considerations:
 
-Oil prices
+* Prevented many-to-many join explosion
+* Ensured unique merge keys
+* Used `.isin()` for holiday feature instead of full merge
 
-Holiday indicator
+---
 
-Avoided many-to-many merge explosions by:
+## 7. Feature Engineering
 
-Ensuring unique merge keys
+Feature engineering plays a critical role in time-series forecasting.
 
-Using .isin() for holiday feature
+### 7.1 Date-Based Features
 
-4️⃣ Feature Engineering
-📅 Date Features
+Extracted:
 
-Year
+* year
+* month
+* day
+* dayofweek
+* weekofyear
+* quarter
+* is_weekend
 
-Month
+Purpose:
 
-Day
+* Capture seasonality
+* Capture weekly patterns
+* Capture monthly cycles
+* Capture weekend demand variations
 
-Day of week
+---
 
-Week of year
+### 7.2 Promotion Feature
 
-Quarter
+Converted `onpromotion` to numeric format.
 
-Weekend indicator
+Promotions strongly influence short-term demand spikes.
 
-🏷 Promotion Feature
+---
 
-Converted onpromotion to numeric
+### 7.3 Lag Features
 
-⏳ Lag Features
+Created:
 
-lag_7
+* lag_7
+* lag_14
 
-lag_14
+Purpose:
 
-Captures past demand influence.
+* Capture autocorrelation
+* Model influence of recent sales history
 
-📊 Rolling Features
+---
 
-rolling_mean_7
+### 7.4 Rolling Mean Feature
 
-Captures short-term demand trend.
+Created:
 
-5️⃣ Time-Based Validation
+* rolling_mean_7
 
-Used time split instead of random split:
+Purpose:
 
-Train: Past data
-Validation: Most recent 30 days
+* Smooth demand fluctuations
+* Capture short-term sales trend
 
-Prevents data leakage.
+---
 
-🤖 Models Trained
+## 8. Time-Based Validation Strategy
 
-Linear Regression
+Used time-based split instead of random split.
 
-Ridge Regression
+Procedure:
 
-Random Forest
+* Training data: Historical period
+* Validation data: Most recent 30 days
 
-XGBoost
+Reason:
 
-📊 Evaluation Metrics
+Random split causes data leakage in time-series problems.
+Time-based validation simulates real-world forecasting.
 
-We evaluated using:
+---
 
-MAE (Mean Absolute Error)
+## 9. Models Trained
 
-RMSE (Root Mean Squared Error)
+The following models were trained and evaluated:
 
-RMSLE (Root Mean Squared Log Error)
+| Model             | Type                       |
+| ----------------- | -------------------------- |
+| Linear Regression | Linear baseline model      |
+| Ridge Regression  | Regularized linear model   |
+| Random Forest     | Bagging ensemble           |
+| XGBoost           | Gradient boosting ensemble |
+
+---
+
+## 10. Evaluation Metrics
+
+Used the following metrics:
+
+* MAE (Mean Absolute Error)
+* RMSE (Root Mean Squared Error)
+* RMSLE (Root Mean Squared Log Error)
 
 RMSLE is most important because:
 
-Sales are skewed
+* Sales data is skewed
+* Penalizes underprediction
+* Was the official Kaggle competition metric
 
-Penalizes underprediction
+---
 
-Used in Kaggle competition
+## 11. Model Performance
 
-🏆 Model Performance
-Model	Valid MAE	Valid RMSE	Valid RMSLE
-Linear Regression	4.19	16.75	0.70
-Ridge Regression	4.15	16.70	0.69
-Random Forest	3.25	15.61	0.50
-XGBoost	3.19	15.66	0.495
-🥇 Best Model: XGBoost
+| Model             | Validation MAE | Validation RMSE | Validation RMSLE |
+| ----------------- | -------------- | --------------- | ---------------- |
+| Linear Regression | 4.19           | 16.75           | 0.70             |
+| Ridge Regression  | 4.15           | 16.70           | 0.69             |
+| Random Forest     | 3.25           | 15.61           | 0.50             |
+| XGBoost           | 3.19           | 15.66           | 0.495            |
 
-XGBoost outperformed all models because:
+---
 
-Captures nonlinear relationships
+## 12. Best Model
 
-Handles feature interactions
+XGBoost achieved the best validation performance.
 
-Strong bias-variance tradeoff
+Reasons:
 
-Robust to skewed distributions
+* Captures nonlinear relationships
+* Handles feature interactions automatically
+* Strong bias–variance balance
+* Robust for structured tabular data
 
-📌 Key Learnings
+---
 
-Handling large datasets with memory constraints
+## 13. Key Learnings
 
-Avoiding many-to-many merge issues
+* Importance of lag-based time-series features
+* Avoiding many-to-many merge issues
+* Preventing data leakage using time-based validation
+* Handling large datasets under memory constraints
+* Comparing multiple ML models for structured data
 
-Preventing time-series data leakage
+---
 
-Importance of lag-based features
+## 14. How to Run
 
-Comparing multiple ML algorithms
+### Step 1: Install Dependencies
 
-Proper validation strategy
-
-🚀 How to Run
-1️⃣ Install dependencies
+```
 pip install -r requirements.txt
-2️⃣ Run the pipeline
+```
+
+### Step 2: Run the Pipeline
+
+```
 python main.py
-🔮 Future Improvements
+```
 
-Hyperparameter tuning
+---
 
-Early stopping for XGBoost
+## 15. Future Improvements
 
-Feature importance analysis
+* Hyperparameter tuning for XGBoost
+* Early stopping implementation
+* Feature importance analysis
+* SHAP-based interpretability
+* Store-level or item-level specialized models
+* Deep learning approaches (LSTM, Temporal Fusion Transformer)
 
-SHAP interpretation
+---
 
-Store-level specialized models
+## 16. Project Summary
 
-Deep learning approaches (LSTM)
+This project demonstrates:
 
-🎓 Interview Summary
-
-If asked to explain this project:
-
-Built an end-to-end time-series forecasting pipeline for grocery sales using lag features and boosting models. Implemented memory-efficient data handling, time-based validation, and model benchmarking, achieving best results with XGBoost.
-
-📜 License
-
-This project is for educational and portfolio purposes.
+* End-to-end ML pipeline development
+* Time-series feature engineering
+* Memory-efficient data handling
+* Proper validation methodology
+* Model benchmarking and selection
